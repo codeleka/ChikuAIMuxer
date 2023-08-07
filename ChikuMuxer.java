@@ -41,9 +41,17 @@ public class ChikuMuxer {
 
     @SuppressLint("WrongConstant")
     public static void videoAudioMuxer(String videoFilePath, String audioFilePath, Activity activity, ChikuMux chikuMux) {
-        ChikuMuxer.cancelMixer = false;
-        progressCounter = 0;
+        
+        if (!videoFilePath.toLowerCase().endsWith(".mp4")) {
+            chikuMux.onFailed("Please Select MP4 Video");
+            return;
+        }
 
+        if (!audioFilePath.toLowerCase().endsWith(".aac")) {
+            chikuMux.onFailed("Please Select AAC Audio");
+            return;
+        }
+        
         try {
             File chikuCheckVideoFile = new File(videoFilePath);
             File chikuCheckAudioFile = new File(audioFilePath);
@@ -56,6 +64,10 @@ public class ChikuMuxer {
             chikuMux.onFailed("Access Denied");
             return;
         }
+
+        ChikuMuxer.cancelMixer = false;
+        progressCounter = 0;
+
 
         new Thread(() -> {
 
