@@ -13,6 +13,7 @@ import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -23,24 +24,29 @@ import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 
 public class ChikuMuxer {
-
+    
+    public static boolean cancelMixer = false;
 
     public interface ChikuMux {
-        void onStart();
+        void onStart(int totalSize);
 
-        void onProgress(int length, int progress);
+        void onProgress(int progress);
 
         void onComplete(String path);
 
         void onFailed(String message);
     }
 
+    private static int progressCounter = 0;
+
     @SuppressLint("WrongConstant")
     public static void videoAudioMuxer(String videoFilePath, String audioFilePath, Activity activity, ChikuMux chikuMux) {
+        ChikuMuxer.cancelMixer = false;
+        progressCounter = 0;
 
         try {
             File chikuCheckVideoFile = new File(videoFilePath);
-            File chikuCheckAudioFile = new File(videoFilePath);
+            File chikuCheckAudioFile = new File(audioFilePath);
 
             if (!(chikuCheckVideoFile.exists() && chikuCheckAudioFile.exists())) {
                 chikuMux.onFailed("File not exist");
@@ -51,139 +57,151 @@ public class ChikuMuxer {
             return;
         }
 
-        chikuMux.onStart();
+        new Thread(() -> {
 
-        @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new java.util.Date());
+            @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new java.util.Date());
+            File savedDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/ChikuAIMuxer");
 
-        File savedDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/ChikuAIMuxer");
+            if (!savedDirectory.exists()) {
+                savedDirectory.mkdir();
+                savedDirectory.mkdirs();
+            }
 
-        if (!savedDirectory.exists()) {
-            savedDirectory.mkdir();
-            savedDirectory.mkdirs();
-        }
+            String opPath = savedDirectory + "/" + timeStamp + "_editor_video.mp4";
 
-        String opPath = savedDirectory + "/" + timeStamp + "_editor_video.mp4";
+            String outputFile = "";
+
+            try {
 
 
-        String outputFile = "";
+                File file = new File(opPath);
 
-        try {
+                file.createNewFile();
+                outputFile = file.getAbsolutePath();
 
-            File file = new File(opPath);
-
-            file.createNewFile();
-            outputFile = file.getAbsolutePath();
-
-            MediaExtractor videoExtractor = new MediaExtractor();
-
-            videoExtractor.setDataSource(videoFilePath);
-
-            MediaExtractor audioExtractor = new MediaExtractor();
-            audioExtractor.setDataSource(audioFilePath);
+                MediaExtractor videoExtractor = new MediaExtractor();
+                videoExtractor.setDataSource(videoFilePath);
+                MediaExtractor audioExtractor = new MediaExtractor();
+                audioExtractor.setDataSource(audioFilePath);
 
 //            Log.d("CHEDDDDDDDD", "Video Extractor Track Count " + videoExtractor.getTrackCount());
 //            Log.d("CHEDDDDDDDD", "Audio Extractor Track Count " + audioExtractor.getTrackCount());
 
-            MediaMuxer muxer = new MediaMuxer(outputFile, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+                MediaMuxer muxer = new MediaMuxer(outputFile, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
 
 //            --- video --------
-            videoExtractor.selectTrack(0);
-            MediaFormat videoFormat = videoExtractor.getTrackFormat(0);
-            int videoTrack = muxer.addTrack(videoFormat);
+                videoExtractor.selectTrack(0);
+                MediaFormat videoFormat = videoExtractor.getTrackFormat(0);
+                int videoTrack = muxer.addTrack(videoFormat);
 
 
 //            ------ audio -------
-            audioExtractor.selectTrack(0);
-            MediaFormat audioFormat = audioExtractor.getTrackFormat(0);
-            int audioTrack = muxer.addTrack(audioFormat);
+                audioExtractor.selectTrack(0);
+                MediaFormat audioFormat = audioExtractor.getTrackFormat(0);
+                int audioTrack = muxer.addTrack(audioFormat);
 
 
 //            Log.d("CHEDDDDDDDD", "Video Format " + videoFormat.toString());
 //            Log.d("CHEDDDDDDDD", "Audio Format " + audioFormat.toString());
 
-            boolean sawEOS = false;
-            int frameCount = 0;
-            int offset = 100;
-            int sampleSize = 256 * 1024;
-            ByteBuffer videoBuf = ByteBuffer.allocate(sampleSize);
-            ByteBuffer audioBuf = ByteBuffer.allocate(sampleSize);
-            MediaCodec.BufferInfo videoBufferInfo = new MediaCodec.BufferInfo();
-            MediaCodec.BufferInfo audioBufferInfo = new MediaCodec.BufferInfo();
+                boolean sawEOS = false;
+
+                int offset = 100;
+                int sampleSize = 256 * 1024;
+                ByteBuffer videoBuf = ByteBuffer.allocate(sampleSize);
+                ByteBuffer audioBuf = ByteBuffer.allocate(sampleSize);
+                MediaCodec.BufferInfo videoBufferInfo = new MediaCodec.BufferInfo();
+                MediaCodec.BufferInfo audioBufferInfo = new MediaCodec.BufferInfo();
 
 
-            videoExtractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
-            audioExtractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
+                videoExtractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
+                audioExtractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
 
-            muxer.start();
+                muxer.start();
 
-            while (!sawEOS) {
 
-                videoBufferInfo.offset = offset;
-                videoBufferInfo.size = videoExtractor.readSampleData(videoBuf, offset);
+                activity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        chikuMux.onStart(ChikuMuxer.getSizeInKb(new File(videoFilePath)) + ChikuMuxer.getSizeInKb(new File(audioFilePath)));
+                    }
+                });
 
-                if (videoBufferInfo.size < 0 || audioBufferInfo.size < 0) {
-                    sawEOS = true;
-                    videoBufferInfo.size = 0;
-                } else {
 
-                    videoBufferInfo.presentationTimeUs = videoExtractor.getSampleTime();
-                    videoBufferInfo.flags = videoExtractor.getSampleFlags();
-                    muxer.writeSampleData(videoTrack, videoBuf, videoBufferInfo);
-                    videoExtractor.advance();
+                while (!sawEOS) {
 
-                    frameCount++;
+                    if (ChikuMuxer.cancelMixer) {
+                        deleteJunk(opPath);
+                        break;
+                    }
 
-//                    Log.d("CHEDDDDDDDD", "Frame (" + frameCount + ") Video PresentationTimeUs:" + videoBufferInfo.presentationTimeUs + " Flags:" + videoBufferInfo.flags + " Size(KB) " + videoBufferInfo.size / 1024);
-//                    Log.d("CHEDDDDDDDD", "Frame (" + frameCount + ") Audio PresentationTimeUs:" + audioBufferInfo.presentationTimeUs + " Flags:" + audioBufferInfo.flags + " Size(KB) " + audioBufferInfo.size / 1024);
+                    videoBufferInfo.offset = offset;
+                    videoBufferInfo.size = videoExtractor.readSampleData(videoBuf, offset);
 
+                    if (videoBufferInfo.size < 0 || audioBufferInfo.size < 0) {
+                        sawEOS = true;
+                        videoBufferInfo.size = 0;
+                    } else {
+
+                        videoBufferInfo.presentationTimeUs = videoExtractor.getSampleTime();
+                        videoBufferInfo.flags = videoExtractor.getSampleFlags();
+                        muxer.writeSampleData(videoTrack, videoBuf, videoBufferInfo);
+                        videoExtractor.advance();
+
+                        progressCounter++;
+                        activity.runOnUiThread(() -> chikuMux.onProgress(progressCounter));
+
+                    }
                 }
 
-                chikuMux.onProgress(videoBufferInfo.size, frameCount);
+                boolean sawEOS2 = false;
 
+                while (!sawEOS2) {
+
+                    if (ChikuMuxer.cancelMixer) {
+                        deleteJunk(opPath);
+                        break;
+                    }
+
+                    audioBufferInfo.offset = offset;
+                    audioBufferInfo.size = audioExtractor.readSampleData(audioBuf, offset);
+
+                    if (videoBufferInfo.size < 0 || audioBufferInfo.size < 0) {
+                        sawEOS2 = true;
+                        audioBufferInfo.size = 0;
+                    } else {
+                        audioBufferInfo.presentationTimeUs = audioExtractor.getSampleTime();
+                        audioBufferInfo.flags = audioExtractor.getSampleFlags();
+                        muxer.writeSampleData(audioTrack, audioBuf, audioBufferInfo);
+                        audioExtractor.advance();
+                    }
+
+                    progressCounter++;
+                    activity.runOnUiThread(() -> chikuMux.onProgress(progressCounter));
+                }
+
+                muxer.stop();
+                muxer.release();
+                if (!ChikuMuxer.cancelMixer) {
+                    activity.runOnUiThread(() -> chikuMux.onComplete(opPath));
+                }
+            } catch (Exception e) {
+                deleteJunk(opPath);
+                activity.runOnUiThread(() -> chikuMux.onFailed(e.toString()));
             }
+        }).start();
+    }
 
-            boolean sawEOS2 = false;
-            int frameCount2 = 0;
-
-            while (!sawEOS2) {
-                frameCount2++;
-
-                audioBufferInfo.offset = offset;
-                audioBufferInfo.size = audioExtractor.readSampleData(audioBuf, offset);
-
-                if (videoBufferInfo.size < 0 || audioBufferInfo.size < 0) {
-                    sawEOS2 = true;
-                    audioBufferInfo.size = 0;
-                } else {
-                    audioBufferInfo.presentationTimeUs = audioExtractor.getSampleTime();
-                    audioBufferInfo.flags = audioExtractor.getSampleFlags();
-                    muxer.writeSampleData(audioTrack, audioBuf, audioBufferInfo);
-                    audioExtractor.advance();
-
-//                    Log.d("CHEDDDDDDDD", "Frame (" + frameCount2 + ") Video PresentationTimeUs:" + videoBufferInfo.presentationTimeUs + " Flags:" + videoBufferInfo.flags + " Size(KB) " + videoBufferInfo.size / 1024);
-//                    Log.d("CHEDDDDDDDD", "Frame (" + frameCount2 + ") Audio PresentationTimeUs:" + audioBufferInfo.presentationTimeUs + " Flags:" + audioBufferInfo.flags + " Size(KB) " + audioBufferInfo.size / 1024);
-
-                }
-                chikuMux.onProgress(videoBufferInfo.size, frameCount2);
-
+    private static void deleteJunk(String opPath) {
+        try {
+            if (opPath.isEmpty()) {
+                return;
             }
-
-            muxer.stop();
-            muxer.release();
-            chikuMux.onComplete(opPath);
-
-        } catch (Exception e) {
-            try {
-                if (opPath.isEmpty()) {
-                    return;
-                }
-                File file = new File(opPath);
-                if (file.exists()) {
-                    file.deleteOnExit();
-                }
-            } catch (Exception ignored) {
+            File file = new File(opPath);
+            if (file.exists()) {
+                file.delete();
             }
-            chikuMux.onFailed(e.toString());
+        } catch (Exception ignored) {
         }
     }
 
@@ -205,23 +223,7 @@ public class ChikuMuxer {
             }
             // DownloadsProvider
             else if (isDownloadsDocument(uri)) {
-
-//                Log.d("FHBifuhgl", "getPath: 44");
-//
-//                String[] projection = {MediaStore.MediaColumns.DATA};
-//                try {
-//                    try (Cursor cursor = context.getContentResolver().query(uri, projection, null, null, null)) {
-//                        if (cursor != null && cursor.moveToFirst()) {
-//                            int index = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA);
-//                            return cursor.getString(index);
-//                        }
-//                    }
-//                }catch (Exception e){
-//                    Log.d("FHBifuhgl", "getPath: "+e.toString());
-//                }
-
                 String dstPath = context.getCacheDir().getAbsolutePath() + File.separator + getFileName(context, uri);
-
                 if (copyFile(context, uri, dstPath)) {
                     return dstPath;
                 }
@@ -258,11 +260,9 @@ public class ChikuMuxer {
     }
 
     public static String getFileName(Context context, Uri uri) {
-
         Cursor cursor = context.getContentResolver().query(uri, null, null, null, null);
         int nameindex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
         cursor.moveToFirst();
-
         return cursor.getString(nameindex);
     }
 
@@ -354,7 +354,11 @@ public class ChikuMuxer {
 
 
     public static int getSize(File file) {
-        return (int) file.length() / (1024 * 1024);
+        return (int) (file.length() / (1024 * 1024));
+    }
+
+    public static int getSizeInKb(File file) {
+        return (int) (file.length() / (1024));
     }
 
 
