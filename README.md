@@ -20,16 +20,17 @@ ChikuAI Muxer
 
 ------Mix Audio Inside Video
 
-ChikuMuxer.videoAudioMuxer("Your Video Path", "Your Audio Path",YourActivity.this, new ChikuMuxer.ChikuMux() {
+
+ ChikuMuxer.videoAudioMuxer("Your Video Path", "Your Audio Path",YourActivity.this, new ChikuMuxer.ChikuMux() {
             @Override
             public void onStart() {
-               // call back on start
+                // call back on start
             }
 
             @Override
             public void onProgress(int length, int progress) {
-                 // call back on Progress of Mixing
-  
+                // call back on Progress of Mixing
+
             }
 
             @Override
@@ -39,12 +40,9 @@ ChikuMuxer.videoAudioMuxer("Your Video Path", "Your Audio Path",YourActivity.thi
 
             @Override
             public void onFailed(String message) {
-                 // call back on error , file missing , permission missing as well type 
+                // call back on error , file missing , permission missing as well type 
             }
-  });
-
-
-
+        });
 
 
 ---------- Uri to Path 
