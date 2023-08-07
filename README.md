@@ -63,6 +63,8 @@ ChikuAI Muxer
     int file_size = ChikuMuxer.getSize(file);
 
 
+------------ Chooser 
+
+    ChikuMuxer.chooser(YourActivity.this, "FileType/FileType",RESPONSE_CODE); // e.g. ChikuMuxer.chooser(MainActivity.this, "video/*",101); 
 
 
-  
