@@ -1,6 +1,7 @@
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
@@ -33,7 +34,7 @@ public class ChikuMuxer {
 
         void onFailed(String message);
     }
-    
+
     @SuppressLint("WrongConstant")
     public static void videoAudioMuxer(String videoFilePath, String audioFilePath, Activity activity, ChikuMux chikuMux) {
 
@@ -332,6 +333,9 @@ public class ChikuMuxer {
         return null;
     }
 
+
+    //    ---------Information----------
+
     public static double getDurationInt(String filePath) {
         try {
             MediaMetadataRetriever metaRetriever_int = new MediaMetadataRetriever();
@@ -351,6 +355,16 @@ public class ChikuMuxer {
 
     public static int getSize(File file) {
         return (int) file.length() / (1024 * 1024);
+    }
+
+
+//    --------- Chooser----------
+
+    public static void chooser(Activity activity, String type, int RESPONSE_CODE) {
+        Intent intent = new Intent();
+        intent.setType(type);
+        intent.setAction(Intent.ACTION_GET_CONTENT);
+        activity.startActivityForResult(Intent.createChooser(intent, "Select File"), RESPONSE_CODE);
     }
 
 }
