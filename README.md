@@ -21,12 +21,12 @@ ChikuAI Muxer
 ------Mix Audio Inside Video
 
 
- ChikuMuxer.videoAudioMuxer("Your Video Path", "Your Audio Path",YourActivity.this, new ChikuMuxer.ChikuMux() {
+ 
+      ChikuMuxer.videoAudioMuxer("Your Video Path", "Your Audio Path",YourActivity.this, new ChikuMuxer.ChikuMux() {
             @Override
-            public void onStart() {
+              public void onStart() {
                 // call back on start
             }
-
             @Override
             public void onProgress(int length, int progress) {
                 // call back on Progress of Mixing
@@ -42,25 +42,25 @@ ChikuAI Muxer
             public void onFailed(String message) {
                 // call back on error , file missing , permission missing as well type 
             }
-        });
+       });
 
 
 ---------- Uri to Path 
 
-String filePath = ChikuMuxer.getPathFromUri(YourActivity.this, uri);
+    String filePath = ChikuMuxer.getPathFromUri(YourActivity.this, uri);
 
 
 
 ---------- File Path to Duration 
 
- double file_dur = ChikuMuxer.getDurationInt(String.valueOf(file));
+    double file_dur = ChikuMuxer.getDurationInt(String.valueOf(file));
 
 
 
 ----------- File Path to size 
 
 
- int file_size = ChikuMuxer.getSize(file);
+    int file_size = ChikuMuxer.getSize(file);
 
 
 
