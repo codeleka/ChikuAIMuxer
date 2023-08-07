@@ -51,7 +51,7 @@ public class ChikuMuxer {
             return;
         }
 
-        new Thread(chikuMux::onStart).start();
+        chikuMux.onStart();
 
         @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new java.util.Date());
 
