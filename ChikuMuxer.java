@@ -1,4 +1,3 @@
-
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
@@ -24,6 +23,7 @@ import java.text.SimpleDateFormat;
 
 public class ChikuMuxer {
 
+
     public interface ChikuMux {
         void onStart();
 
@@ -33,16 +33,15 @@ public class ChikuMuxer {
 
         void onFailed(String message);
     }
-
-
+    
     @SuppressLint("WrongConstant")
     public static void videoAudioMuxer(String videoFilePath, String audioFilePath, Activity activity, ChikuMux chikuMux) {
 
         try {
-            File checkVideoFile = new File(videoFilePath);
-            File checkAudioFile = new File(videoFilePath);
+            File chikuCheckVideoFile = new File(videoFilePath);
+            File chikuCheckAudioFile = new File(videoFilePath);
 
-            if (!(checkVideoFile.exists() && checkAudioFile.exists())) {
+            if (!(chikuCheckVideoFile.exists() && chikuCheckAudioFile.exists())) {
                 chikuMux.onFailed("File not exist");
                 return;
             }
@@ -54,7 +53,16 @@ public class ChikuMuxer {
         new Thread(chikuMux::onStart).start();
 
         @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new java.util.Date());
-        String opPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/editors/" + timeStamp + "_editor_video.mp4";
+
+        File savedDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/ChikuAIMuxer");
+
+        if (!savedDirectory.exists()) {
+            savedDirectory.mkdir();
+            savedDirectory.mkdirs();
+        }
+
+        String opPath = savedDirectory + "/" + timeStamp + "_editor_video.mp4";
+
 
         String outputFile = "";
 
@@ -340,5 +348,9 @@ public class ChikuMuxer {
         return 0;
     }
 
+
+    public static int getSize(File file) {
+        return (int) file.length() / (1024 * 1024);
+    }
 
 }
